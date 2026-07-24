@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: frogbot
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: jfrog/frogbot@v3
         with:
           oidc-provider-name: jackcu-github-oidc

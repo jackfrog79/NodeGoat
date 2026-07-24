@@ -16,6 +16,9 @@ jobs:
       matrix:
         branch: ["master"]
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
       - uses: jfrog/frogbot@v3
         with:
           oidc-provider-name: jackcu-github-oidc
