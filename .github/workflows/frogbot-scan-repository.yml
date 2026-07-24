@@ -19,6 +19,7 @@ jobs:
       - uses: jfrog/frogbot@v3
         with:
           oidc-provider-name: jackcu-github-oidc
+          oidc-audience: jfrog-jackcu-solengeu
         env:
           JF_URL: ${{ vars.JF_URL }}
           JF_PROJECT: ${{ vars.JF_PROJECT }}
