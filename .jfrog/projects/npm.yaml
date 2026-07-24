@@ -1,0 +1,8 @@
+version: 1
+type: npm
+resolver:
+    repo: jackcu-npm-virtual
+    serverId: solengeu
+deployer:
+    repo: jackcu-npm-virtual
+    serverId: solengeu

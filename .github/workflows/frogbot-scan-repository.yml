@@ -16,11 +16,11 @@ jobs:
       matrix:
         branch: ["master"]
     steps:
-      - uses: jfrog/frogbot@v2
+      - uses: jfrog/frogbot@v3
+        with:
+          oidc-provider-name: jackcu-github-oidc
         env:
           JF_URL: ${{ vars.JF_URL }}
           JF_PROJECT: ${{ vars.JF_PROJECT }}
           JF_GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JF_GIT_BASE_BRANCH: ${{ matrix.branch }}
-          JF_OIDC_PROVIDER_NAME: jackcu-github-oidc
-          JF_INSTALL_DEPS_CMD: "npm install --legacy-peer-deps"
