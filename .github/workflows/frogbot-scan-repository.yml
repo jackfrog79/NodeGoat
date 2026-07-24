@@ -1,0 +1,26 @@
+name: "Frogbot Scan Repository"
+on:
+  push:
+    branches: ["master"]
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+  security-events: write
+  id-token: write
+jobs:
+  scan-repository:
+    runs-on: ubuntu-latest
+    environment: frogbot
+    strategy:
+      matrix:
+        branch: ["master"]
+    steps:
+      - uses: jfrog/frogbot@v2
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+          JF_PROJECT: ${{ vars.JF_PROJECT }}
+          JF_GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JF_GIT_BASE_BRANCH: ${{ matrix.branch }}
+          JF_OIDC_PROVIDER_NAME: jackcu-github-oidc
+          JF_INSTALL_DEPS_CMD: "npm install --legacy-peer-deps"
