@@ -247,7 +247,7 @@ See the original [OWASP/NodeGoat instructions](https://github.com/OWASP/NodeGoat
 
 | Workflow | Purpose |
 |---|---|
-| `.github/workflows/build.yml` | Installs deps, seeds Mongo, boots the app, and smoke-tests it on every push/PR — real green/red build history for this repo. |
+| `.github/workflows/build.yml` | Installs deps, seeds Mongo, boots the app, and smoke-tests it on every push/PR — real green/red build history for this repo. A second, best-effort stage re-installs via `jf npm install` and publishes build-info to Artifactory (`nodegoat-golden-jas-demo` build, `jackcu` project), then triggers an Xray build-scan so this build shows up in Xray's Builds list. |
 | `.github/workflows/frogbot-scan-repository.yml` | Full Frogbot/Xray scan on push to `master`. |
 | `.github/workflows/frogbot-scan-pr.yml` | Frogbot/Xray scan on pull requests. |
 | `.github/workflows/jas-demo-pwn-request.yml` | The intentionally-vulnerable-pattern workflow described in [§5](#5-github-actions-workflow-scanner-pwn-request-detection). |
