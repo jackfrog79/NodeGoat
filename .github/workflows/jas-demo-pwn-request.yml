@@ -1,0 +1,36 @@
+name: "JAS Demo - Pwn Request Pattern (intentionally vulnerable)"
+
+# This workflow exists ONLY so JFrog's GitHub Actions Workflow Scanner
+# (Pwn-Request Detection, via Frogbot v3.6.0+) has a real example to flag in
+# this repo. It reproduces the vulnerable YAML *shape* the scanner looks for:
+#   1. `pull_request_target` trigger (runs with base-repo privileges/secrets)
+#   2. `actions/checkout` pinned to the PR head ref
+#   3. No fork-origin guard and no trusted-actor (e.g. dependabot) guard
+#
+# It is kept harmless on purpose: `permissions` is read-only, no `secrets`
+# are referenced anywhere in the job, and the only step after checkout is an
+# echo — so even if the pattern were exploited, there is nothing sensitive
+# to exfiltrate and no write access to abuse. Do not add secrets or write
+# permissions to this workflow; that would turn the demo into a real
+# vulnerability.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  vulnerable-checkout-pattern:
+    runs-on: ubuntu-latest
+    steps:
+      # Vulnerable: checking out the PR head inside a pull_request_target
+      # workflow means any subsequent step runs the fork's code with the
+      # base repo's token/secrets — this is exactly what the scanner flags.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Demo step (no secrets, no write access)
+        run: echo "This step intentionally does nothing sensitive."

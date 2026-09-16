@@ -1,0 +1,32 @@
+# JAS Services-scan demo overlay. Standalone — intentionally NOT merged
+# into the app's main docker-compose.yml, so the golden-demo misconfigs
+# never affect the real running app.
+#
+# Run in isolation with:
+#   docker compose -f jas-samples/services/docker-compose.services-demo.yml up
+#
+# JFrog Advanced Security's Services Scan inspects the OSS services running
+# inside these containers (NGINX, Prometheus) against their config files
+# below for insecure defaults — see nginx/nginx.conf and
+# prometheus/prometheus.yml in this directory for the specific findings.
+
+version: "3.7"
+
+services:
+  nginx:
+    image: nginx:1.25
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:80"
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.enable-admin-api"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"

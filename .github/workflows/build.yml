@@ -1,0 +1,67 @@
+name: "Build & Smoke Test"
+
+# Gives this repo real, visible build history in the GitHub Actions tab —
+# separate from the Frogbot scan workflows. Runs on GitHub's own hosted
+# runner using the public npm registry (this workflow intentionally does not
+# route through the org's JFrog Artifactory instance, since NodeGoat's
+# curriculum depends on intentionally old/vulnerable package versions that
+# the org's Curation policy blocks by design — see the top-level README's
+# "Contextual Analysis of CVEs" section).
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+
+    services:
+      mongo:
+        image: mongo:4.4
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongo --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      MONGODB_URI: mongodb://localhost:27017/nodegoat
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "12.x"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint (jshint via grunt)
+        run: node node_modules/grunt-cli/bin/grunt jshint
+        continue-on-error: true
+
+      - name: Seed database
+        run: npm run db:seed
+
+      - name: Start app and smoke-test it
+        run: |
+          npm start &
+          APP_PID=$!
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:4000/ -o /dev/null; then
+              echo "NodeGoat responded successfully"
+              kill $APP_PID
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "NodeGoat did not respond in time"
+          kill $APP_PID
+          exit 1

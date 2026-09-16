@@ -1,0 +1,28 @@
+# JAS Services-scan demo fixture (Prometheus). Wired into
+# docker-compose.services-demo.yml — NOT into the app's main
+# docker-compose.yml.
+#
+# Findings demonstrated (JFrog Misconfiguration Scans -> Services -> Prometheus):
+#  - Unauthenticated access: no basic_auth/TLS on scrape targets or the
+#    admin/lifecycle API, so anyone reaching the port can read metrics or
+#    reload config.
+#  - Credentials in config file: a scrape target basic-auth password stored
+#    in plaintext.
+
+global:
+  scrape_interval: 15s
+
+# Vulnerable: --web.enable-admin-api / --web.enable-lifecycle style endpoints
+# are meant to be paired with this config; no auth is configured here at all.
+
+scrape_configs:
+  - job_name: "nodegoat-app"
+    static_configs:
+      - targets: ["web:4000"]
+
+  - job_name: "internal-db-exporter"
+    basic_auth:
+      username: "prom"
+      password: "SuperSecretP@ss123" # Vulnerable: credential stored in plaintext config
+    static_configs:
+      - targets: ["mongo-exporter:9216"]
