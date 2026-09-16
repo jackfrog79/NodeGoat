@@ -52,6 +52,14 @@ jobs:
         env:
           JF_URL: ${{ vars.JF_URL }}
 
+      - name: Configure JFrog npm repo
+        run: |
+          jf npm-config \
+            --server-id-resolve=setup-jfrog-cli-server \
+            --server-id-deploy=setup-jfrog-cli-server \
+            --repo-resolve=jackcu-npm-virtual \
+            --repo-deploy=jackcu-npm-virtual
+
       - name: Install dependencies (build-tracked)
         run: |
           jf npm install \
