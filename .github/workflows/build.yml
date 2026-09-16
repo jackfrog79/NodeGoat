@@ -1,15 +1,11 @@
 name: "Build & Smoke Test"
 
 # Gives this repo real, visible build history in the GitHub Actions tab —
-# separate from the Frogbot scan workflows. The app-boot/smoke-test steps run
-# against the public npm registry so this job stays reliable regardless of
-# Artifactory-side policy state. Once that's green, a second set of steps
-# re-installs via `jf npm install` (routed through Artifactory per
-# .jfrog/projects/npm.yaml) purely to publish build-info and trigger an Xray
-# build-scan under the jackcu project, so this build shows up in Xray's
-# Builds list. Those steps are `continue-on-error` — Artifactory/Xray-side
-# flakiness (curation propagation, indexing config) shouldn't fail the
-# core "does the app run" check above it.
+# separate from the Frogbot scan workflows. Installs are build-tracked via
+# `jf npm install` (routed through Artifactory per .jfrog/projects/npm.yaml)
+# so the same install that boots the app also feeds real build-info to
+# Xray. No continue-on-error on the JFrog steps: if Artifactory/Xray-side
+# state is broken, this job should show red, not a false green.
 
 on:
   push:
@@ -40,10 +36,6 @@ jobs:
     env:
       MONGODB_URI: mongodb://localhost:27017/nodegoat
       NODE_ENV: test
-      JF_URL: ${{ vars.JF_URL }}
-      JF_PROJECT: ${{ vars.JF_PROJECT }}
-      BUILD_NAME: nodegoat-golden-jas-demo
-      BUILD_NUMBER: ${{ github.run_number }}-${{ github.sha }}
 
     steps:
       - uses: actions/checkout@v4
@@ -52,8 +44,19 @@ jobs:
         with:
           node-version: "12.x"
 
-      - name: Install dependencies
-        run: npm install
+      - name: Authenticate to JFrog via OIDC
+        uses: jfrog/setup-jfrog-cli@v4
+        with:
+          oidc-provider-name: jackcu-github-oidc
+          oidc-audience: jfrog-jackcu-solengeu
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+
+      - name: Install dependencies (build-tracked)
+        run: |
+          jf npm install \
+            --build-name="${{ env.JFROG_CLI_BUILD_NAME }}" \
+            --build-number="${{ env.JFROG_CLI_BUILD_NUMBER }}"
 
       - name: Lint (jshint via grunt)
         run: node node_modules/grunt-cli/bin/grunt jshint
@@ -78,24 +81,14 @@ jobs:
           kill $APP_PID
           exit 1
 
-      # --- JFrog build-info + Xray scan (best-effort, does not gate the job) ---
-
-      - name: Setup JFrog CLI
-        uses: jfrog/setup-jfrog-cli@v4
-        continue-on-error: true
-        with:
-          oidc-provider-name: jackcu-github-oidc
-          oidc-audience: jfrog-jackcu-solengeu
-
-      - name: Publish build-info to Artifactory
-        continue-on-error: true
+      - name: Publish build info
         run: |
-          jf rt build-collect-env "$BUILD_NAME" "$BUILD_NUMBER"
-          jf rt build-add-git "$BUILD_NAME" "$BUILD_NUMBER"
-          rm -rf node_modules
-          jf npm install --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER"
-          jf rt build-publish "$BUILD_NAME" "$BUILD_NUMBER" --project "$JF_PROJECT"
+          jf rt bp "${{ env.JFROG_CLI_BUILD_NAME }}" "${{ env.JFROG_CLI_BUILD_NUMBER }}" \
+            --project="${{ vars.JF_PROJECT }}" \
+            --collect-env \
+            --collect-git-info
 
-      - name: Trigger Xray build scan
-        continue-on-error: true
-        run: jf build-scan "$BUILD_NAME" "$BUILD_NUMBER" --project "$JF_PROJECT"
+      - name: Run JFrog Xray build scan
+        run: |
+          jf bs "${{ env.JFROG_CLI_BUILD_NAME }}" "${{ env.JFROG_CLI_BUILD_NUMBER }}" \
+            --project="${{ vars.JF_PROJECT }}"
