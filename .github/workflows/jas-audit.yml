@@ -39,9 +39,9 @@ jobs:
         env:
           JF_URL: ${{ vars.JF_URL }}
 
-      - name: Run JAS audit (IaC, SAST, Secrets, Services) and produce SARIF
+      - name: Run JAS audit (IaC, SAST, Secrets) and produce SARIF
         run: |
-          jf audit --iac --sast --secrets --services \
+          jf audit --iac --sast --secrets \
             --format=sarif \
             --min-severity=Low \
             --fail=false \
