@@ -42,7 +42,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "12.x"
+          node-version: "16.x"
 
       - name: Authenticate to JFrog via OIDC
         uses: jfrog/setup-jfrog-cli@v4
