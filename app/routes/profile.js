@@ -1,5 +1,6 @@
 const ProfileDAO = require("../data/profile-dao").ProfileDAO;
 const ESAPI = require("node-esapi");
+const _ = require("lodash");
 const {
     environmentalScripts
 } = require("../../config/config");
@@ -39,6 +40,18 @@ function ProfileHandler(db) {
 
     this.handleProfileUpdate = (req, res, next) => {
 
+        // @TODO @FIXME
+        // Prototype Pollution (CVE-2018-16487 / CVE-2019-10744): lodash's `_.merge`
+        // recursively copies keys from the source object, including `__proto__`, into
+        // the destination when the version is < 4.17.12 (this repo pins lodash 4.17.4).
+        // Merging the raw, unsanitized request body directly like this lets an attacker
+        // send { "__proto__": { "isAdmin": true } } and pollute Object.prototype for
+        // every object in the process.
+        // Fix it by never merging an untrusted object into a fresh {} target, or by
+        // upgrading lodash and using _.merge({}, defaults, sanitizedInput) with an
+        // allow-list of keys instead of the whole req.body.
+        const submittedProfile = _.merge({}, req.body);
+
         const {
             firstName,
             lastName,
@@ -47,7 +60,7 @@ function ProfileHandler(db) {
             address,
             bankAcc,
             bankRouting
-        } = req.body;
+        } = submittedProfile;
 
         // Fix for Section: ReDoS attack
         // The following regexPattern that is used to validate the bankRouting number is insecure and vulnerable to
