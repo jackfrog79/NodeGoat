@@ -1,0 +1,54 @@
+name: "JAS Audit (SARIF)"
+
+# Frogbot's scan-repository/scan-pr commands only ever report Xray
+# *violations* (SetResultsContext(..., includeVulnerabilities=false) is
+# hardcoded in jfrog/frogbot's scanrepository.go and scanpullrequest.go).
+# On this tenant, Xray's own "Violations Reporting" step for gitRepository
+# resources is stuck NOT_SCANNED after Overall completes, so Frogbot always
+# reports zero violations even when its underlying scan finds real issues
+# (confirmed: 15 IaC / 30+ SAST / 13-17 Secrets in recent runs).
+#
+# This job runs `jf audit` directly with no --watches/--project, which per
+# its own docs reports raw findings, not violations, and uploads the result
+# as SARIF straight to GitHub's Security tab - so IaC/SAST/Secrets findings
+# are genuinely visible regardless of the Xray backend gap above.
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  id-token: write
+
+jobs:
+  jas-audit:
+    runs-on: ubuntu-latest
+    environment: frogbot
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to JFrog via OIDC
+        uses: jfrog/setup-jfrog-cli@v4
+        with:
+          oidc-provider-name: jackcu-github-oidc
+          oidc-audience: jfrog-jackcu-solengeu
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+
+      - name: Run JAS audit (IaC, SAST, Secrets, Services) and produce SARIF
+        run: |
+          jf audit --iac --sast --secrets --services \
+            --format=sarif \
+            --min-severity=Low \
+            --fail=false \
+            > jas-audit-results.sarif
+
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: jas-audit-results.sarif
+          category: jfrog-jas-audit
