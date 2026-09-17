@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  JAS SAST demo fixture. Not a real app manifest — paired with
+  VulnActivity.kt in this folder to give the "exported component" and
+  "mutable PendingIntent" Kotlin/Android SAST rules something to match on.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.jasdemo.vuln">
+
+    <application android:allowBackup="true">
+        <!-- Vulnerable: exported="true" with no android:permission, and no
+             intent-filter restricting who can launch it. -->
+        <activity
+            android:name=".VulnActivity"
+            android:exported="true" />
+    </application>
+</manifest>

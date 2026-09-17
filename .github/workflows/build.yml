@@ -1,0 +1,102 @@
+name: "Build & Smoke Test"
+
+# Gives this repo real, visible build history in the GitHub Actions tab —
+# separate from the Frogbot scan workflows. Installs are build-tracked via
+# `jf npm install` (routed through Artifactory per .jfrog/projects/npm.yaml)
+# so the same install that boots the app also feeds real build-info to
+# Xray. No continue-on-error on the JFrog steps: if Artifactory/Xray-side
+# state is broken, this job should show red, not a false green.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+    environment: frogbot
+
+    services:
+      mongo:
+        image: mongo:4.4
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongo --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      MONGODB_URI: mongodb://localhost:27017/nodegoat
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "12.x"
+
+      - name: Authenticate to JFrog via OIDC
+        uses: jfrog/setup-jfrog-cli@v4
+        with:
+          oidc-provider-name: jackcu-github-oidc
+          oidc-audience: jfrog-jackcu-solengeu
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+
+      - name: Configure JFrog npm repo
+        run: |
+          jf npm-config \
+            --server-id-resolve=setup-jfrog-cli-server \
+            --server-id-deploy=setup-jfrog-cli-server \
+            --repo-resolve=jackcu-npm-virtual \
+            --repo-deploy=jackcu-npm-virtual
+
+      - name: Install dependencies (build-tracked)
+        run: |
+          jf npm install \
+            --build-name="${{ env.JFROG_CLI_BUILD_NAME }}" \
+            --build-number="${{ env.JFROG_CLI_BUILD_NUMBER }}"
+
+      - name: Lint (jshint via grunt)
+        run: node node_modules/grunt-cli/bin/grunt jshint
+        continue-on-error: true
+
+      - name: Seed database
+        run: npm run db:seed
+
+      - name: Start app and smoke-test it
+        run: |
+          npm start &
+          APP_PID=$!
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:4000/ -o /dev/null; then
+              echo "NodeGoat responded successfully"
+              kill $APP_PID
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "NodeGoat did not respond in time"
+          kill $APP_PID
+          exit 1
+
+      - name: Publish build info
+        run: |
+          jf rt bp "${{ env.JFROG_CLI_BUILD_NAME }}" "${{ env.JFROG_CLI_BUILD_NUMBER }}" \
+            --project="${{ vars.JF_PROJECT }}" \
+            --collect-env \
+            --collect-git-info
+
+      - name: Run JFrog Xray build scan
+        run: |
+          jf bs "${{ env.JFROG_CLI_BUILD_NAME }}" "${{ env.JFROG_CLI_BUILD_NUMBER }}" \
+            --project="${{ vars.JF_PROJECT }}"
