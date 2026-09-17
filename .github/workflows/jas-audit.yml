@@ -47,6 +47,28 @@ jobs:
             --fail=false \
             > jas-audit-results.sarif
 
+      - name: Sanitize SARIF (this jf CLI version emits invalid 0-value columns)
+        run: |
+          python3 - <<'PYEOF'
+          import json
+
+          with open("jas-audit-results.sarif") as f:
+              sarif = json.load(f)
+
+          for run in sarif.get("runs", []):
+              for result in run.get("results", []):
+                  for location in result.get("locations", []):
+                      region = location.get("physicalLocation", {}).get("region")
+                      if not region:
+                          continue
+                      for key in ("startColumn", "endColumn", "startLine", "endLine"):
+                          if key in region and region[key] < 1:
+                              region[key] = 1
+
+          with open("jas-audit-results.sarif", "w") as f:
+              json.dump(sarif, f)
+          PYEOF
+
       - name: Upload SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
