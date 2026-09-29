@@ -29,3 +29,32 @@ jobs:
           JF_GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JF_GIT_BASE_BRANCH: ${{ matrix.branch }}
           JF_INCLUDE_ALL_VULNERABILITIES: "TRUE"
+
+          # Resolve npm dependencies through Artifactory (Curation-aware) instead of the public registry
+          JF_DEPS_REPO: "jackcu-npm-virtual"
+
+          # Only open PRs for issues with an available fix; drop Low severity noise
+          JF_FIXABLE_ONLY: "true"
+          JF_MIN_SEVERITY: "Medium"
+
+          # Group every fixable vulnerability into a single PR instead of one PR per package
+          JF_GIT_AGGREGATE_FIXES: "true"
+
+          # Custom branch/commit/PR naming for the demo
+          JF_BRANCH_NAME_TEMPLATE: "jfrog-fix-{IMPACTED_PACKAGE}-{BRANCH_NAME_HASH}"
+          JF_COMMIT_MESSAGE_TEMPLATE: "Security fix: upgrade {IMPACTED_PACKAGE} to {FIX_VERSION}"
+          JF_PULL_REQUEST_TITLE_TEMPLATE: "[🐸 Frogbot] Security fix: {IMPACTED_PACKAGE} -> {FIX_VERSION}"
+          JF_GIT_EMAIL_AUTHOR: "frogbot@jfrog-demo.com"
+
+          # Exclude test/build noise from the scan
+          JF_PATH_EXCLUSIONS: "*git*;*node_modules*;*test*;*cypress*"
+
+          # Publish the generated SBOM to GitHub's dependency graph / Insights
+          JF_UPLOAD_SBOM_TO_VCS: "true"
+
+          # Don't silently proceed on a partial scan failure
+          JF_ALLOW_PARTIAL_RESULTS: "false"
+
+          # SAST scan depth: whole-codebase analysis (deepest, most demo-worthy findings)
+          JF_SAST_DEFAULT_SCAN_MODE: "codebase"
+          ENABLE_CUSTOM_SECRETS_SCANNER: "true"
