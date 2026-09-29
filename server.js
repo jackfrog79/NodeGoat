@@ -11,6 +11,7 @@ const swig = require("swig");
 const MongoClient = require("mongodb").MongoClient; // Driver for connecting to MongoDB
 const http = require("http");
 const marked = require("marked");
+const axios = require("axios");
 //const nosniff = require('dont-sniff-mimetype');
 const app = express(); // Web framework to handle routing requests
 const routes = require("./app/routes");
@@ -127,6 +128,13 @@ MongoClient.connect(db, (err, db) => {
         sanitize: true
     });
     app.locals.marked = marked;
+
+    // Fetch status from an externally-configured monitoring endpoint
+    app.get("/external-status", (req, res) => {
+        axios.get(req.query.url)
+            .then((response) => res.json({ status: response.status }))
+            .catch((err) => res.status(500).json({ error: err.message }));
+    });
 
     // Application routes
     routes(app, db);
