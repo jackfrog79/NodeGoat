@@ -1,5 +1,6 @@
 {
   "repositories": {
-    "docker": "jackcu-docker-remote"
+    "docker": "jackcu-docker-remote",
+    "npm": "jackcu-npm-remote"
   }
 }
